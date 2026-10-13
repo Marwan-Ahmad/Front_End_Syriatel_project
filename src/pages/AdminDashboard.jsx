@@ -11,6 +11,7 @@ export default function AdminDashboard() {
   const [userModal, setUserModal] = useState({ isOpen: false, mode: 'add', data: null });
   const [deptModal, setDeptModal] = useState({ isOpen: false, mode: 'add', data: null });
   const [scheduleModal, setScheduleModal] = useState({ isOpen: false, data: null });
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: 'user', id: null, name: '' });
 
   // 2. نماذج البيانات (Form States for Modals)
   const [userForm, setUserForm] = useState({ name: '', email: '', role: 'Patient', department: 'None', status: 'Active' });
@@ -49,13 +50,15 @@ export default function AdminDashboard() {
     { id: 6, name: 'Dermatology', doctor: 'Dr. Robert Wilson', openTickets: 0 }
   ]);
 
-  // المستخدمين والأدوار (Users & Roles)
+  // المستخدمين والأدوار (متضمنة حسابات بانتظار الموافقة للأطباء والاستقبال)
   const [users, setUsers] = useState([
     { id: 1, name: 'Bayan Alrahil', email: 'bayan@cliniccare.sys', role: 'Admin', department: 'None', status: 'Active' },
     { id: 2, name: 'Maya Chen', email: 'maya.chen@example.test', role: 'Patient', department: 'None', status: 'Active' },
     { id: 3, name: 'Dr. Sarah Smith', email: 'sarah.smith@cliniccare.sys', role: 'Doctor', department: 'Internal Medicine', status: 'Active' },
     { id: 4, name: 'Dr. John Doe', email: 'john.doe@cliniccare.sys', role: 'Doctor', department: 'Emergency Care', status: 'Active' },
-    { id: 5, name: 'Mira Ahmad', email: 'mira@cliniccare.sys', role: 'Receptionist', department: 'General Reception', status: 'Active' }
+    { id: 5, name: 'Mira Ahmad', email: 'mira@cliniccare.sys', role: 'Receptionist', department: 'General Reception', status: 'Active' },
+    { id: 6, name: 'Dr. Rami Khaled', email: 'rami.khaled@cliniccare.sys', role: 'Doctor', department: 'Cardiology', status: 'Pending Approval' },
+    { id: 7, name: 'Lina Mansour', email: 'lina@cliniccare.sys', role: 'Receptionist', department: 'General Reception', status: 'Pending Approval' }
   ]);
 
   // جدول المواعيد (Schedules)
@@ -66,10 +69,11 @@ export default function AdminDashboard() {
   ]);
 
   // سجل التدقيق وتاريخ سير العمل
-  const [workflowHistory] = useState([
-    { id: 1, title: 'System initialized', desc: 'Clinical database connected and online.', time: '12m ago' },
-    { id: 2, title: 'Appointment confirmed', desc: 'AP-803 scheduled with Internal Medicine.', time: '7m ago' },
-    { id: 3, title: 'AI Triage Evaluated', desc: 'Ticket #104 assigned Low Urgency flag.', time: '2m ago' }
+  const [workflowHistory, setWorkflowHistory] = useState([
+    { id: 1, title: 'User Logged In', desc: 'System Administrator (admin@cliniccare.sys) logged in successfully.', time: '1m ago' },
+    { id: 2, title: 'System initialized', desc: 'Clinical database connected and online.', time: '15m ago' },
+    { id: 3, title: 'Appointment confirmed', desc: 'AP-803 scheduled with Internal Medicine.', time: '22m ago' },
+    { id: 4, title: 'AI Triage Evaluated', desc: 'Ticket #104 assigned Low Urgency flag.', time: '35m ago' }
   ]);
 
   const handleLogout = () => navigate('/login');
@@ -79,9 +83,8 @@ export default function AdminDashboard() {
     setTimeout(() => setSuccessMsg(''), 4000);
   };
 
-  // --- دوال التحكم بالنوافذ المنبثقة (Modal Handlers) ---
+  // --- دوال التحكم بالنوافذ المنبثقة وإدارة المستخدمين ---
   
-  // 1. User Modal Actions
   const openAddUserModal = () => {
     setUserForm({ name: '', email: '', role: 'Patient', department: 'None', status: 'Active' });
     setUserModal({ isOpen: true, mode: 'add', data: null });
@@ -105,12 +108,30 @@ export default function AdminDashboard() {
     setUserModal({ isOpen: false, mode: 'add', data: null });
   };
 
-  const handleRemoveUser = (id, name) => {
-    setUsers(users.filter(u => u.id !== id));
-    showNotification(`User ${name} removed.`);
+  // دالة الموافقة على حسابات الأطباء والاستقبال
+  const handleApproveUser = (id, name, role) => {
+    setUsers(users.map(u => u.id === id ? { ...u, status: 'Active' } : u));
+    showNotification(`${role} account for "${name}" has been approved successfully!`);
+    
+    // تسجيل العملية في السجل
+    setWorkflowHistory([
+      { id: Date.now(), title: 'User Account Approved', desc: `${role} account for ${name} approved by Admin.`, time: 'Just now' },
+      ...workflowHistory
+    ]);
   };
 
-  // 2. Department Modal Actions
+  const openDeleteModal = (id, name, type = 'user') => {
+    setDeleteModal({ isOpen: true, type, id, name });
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteModal.type === 'user') {
+      setUsers(users.filter(u => u.id !== deleteModal.id));
+      showNotification(`User "${deleteModal.name}" removed successfully.`);
+    }
+    setDeleteModal({ isOpen: false, type: 'user', id: null, name: '' });
+  };
+
   const openAddDeptModal = () => {
     setDeptForm({ name: '', doctor: 'Dr. Sarah Smith' });
     setDeptModal({ isOpen: true, mode: 'add', data: null });
@@ -134,7 +155,6 @@ export default function AdminDashboard() {
     setDeptModal({ isOpen: false, mode: 'add', data: null });
   };
 
-  // 3. Schedule Modal Actions
   const openEditScheduleModal = (sch) => {
     const times = sch.hours ? sch.hours.split('–') : ['09:00', '16:30'];
     setScheduleForm({
@@ -170,7 +190,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans w-full selection:bg-teal-500 selection:text-white">
       
-      {/* Sidebar الموحد */}
+      {/* Sidebar */}
       <aside className="w-72 bg-gradient-to-b from-teal-950 via-slate-950 to-slate-950 border-r border-teal-800/20 p-5 flex flex-col justify-between fixed h-screen z-20 shadow-2xl backdrop-blur-xl">
         <div className="space-y-6">
           <div className="flex items-center space-x-3 px-2 py-3 bg-teal-900/20 rounded-2xl border border-teal-700/20">
@@ -393,6 +413,15 @@ export default function AdminDashboard() {
         {/* TAB 2: USERS & ROLES */}
         {activeTab === 'users' && (
           <div className="space-y-4 animate-fadeIn">
+            
+            {/* تنبيه الموافقات المعلقة للأطباء والاستقبال */}
+            <div className="bg-amber-950/30 border border-amber-500/40 text-amber-200 p-4 rounded-2xl text-xs font-bold flex items-center justify-between shadow-lg">
+              <span>⚠️ Doctor registrations and Receptionist registrations require administrator approval before access.</span>
+              <span className="bg-amber-500/20 px-3 py-1 rounded-xl text-amber-300 font-mono border border-amber-500/30">
+                {users.filter(u => u.status === 'Pending Approval').length} Pending Requests
+              </span>
+            </div>
+
             <div className="flex items-center justify-between gap-4">
               <div className="relative flex-1">
                 <input
@@ -440,19 +469,34 @@ export default function AdminDashboard() {
                       <td className="p-4 font-semibold text-teal-200">{u.role}</td>
                       <td className="p-4 text-teal-300/80">{u.department}</td>
                       <td className="p-4">
-                        <span className="bg-emerald-950 text-emerald-300 border border-emerald-800/40 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
-                          {u.status}
-                        </span>
+                        {u.status === 'Pending Approval' ? (
+                          <span className="bg-amber-950 text-amber-300 border border-amber-800/40 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+                            Pending Approval
+                          </span>
+                        ) : (
+                          <span className="bg-emerald-950 text-emerald-300 border border-emerald-800/40 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+                            {u.status}
+                          </span>
+                        )}
                       </td>
                       <td className="p-4 text-center space-x-2">
+                        {u.status === 'Pending Approval' ? (
+                          <button 
+                            onClick={() => handleApproveUser(u.id, u.name, u.role)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer shadow-sm"
+                          >
+                            Approve ✓
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => openEditUserModal(u)}
+                            className="bg-teal-900/50 hover:bg-teal-800 text-teal-200 px-3.5 py-1.5 rounded-xl border border-teal-700/50 font-bold transition cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                        )}
                         <button 
-                          onClick={() => openEditUserModal(u)}
-                          className="bg-teal-900/50 hover:bg-teal-800 text-teal-200 px-3.5 py-1.5 rounded-xl border border-teal-700/50 font-bold transition cursor-pointer"
-                        >
-                          Edit
-                        </button>
-                        <button 
-                          onClick={() => handleRemoveUser(u.id, u.name)}
+                          onClick={() => openDeleteModal(u.id, u.name, 'user')}
                           className="text-rose-400 hover:text-rose-300 font-bold px-2 py-1 transition cursor-pointer"
                         >
                           Remove
@@ -556,7 +600,7 @@ export default function AdminDashboard() {
                 Workflow history
               </h3>
               <p className="text-xs text-teal-300/70 mt-0.5">
-                Recent configuration and coordination events logged in system memory.
+                Recent configuration, login and coordination events logged in system memory.
               </p>
             </div>
 
@@ -581,9 +625,9 @@ export default function AdminDashboard() {
 
       </main>
 
-      {/* ------------------ MODALS SECTION (مطابقة للصور الـ 6 تماماً) ------------------ */}
+      {/* ------------------ MODALS SECTION ------------------ */}
 
-      {/* 1. Add / Edit User Modal (مطابق للصورتين 1 و 2) */}
+      {/* 1. Add / Edit User Modal */}
       {userModal.isOpen && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white text-slate-800 w-full max-w-lg rounded-3xl p-6 shadow-2xl relative space-y-5 animate-scaleUp">
@@ -667,6 +711,7 @@ export default function AdminDashboard() {
                   className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-teal-600 bg-white"
                 >
                   <option value="Active">Active</option>
+                  <option value="Pending Approval">Pending Approval</option>
                   <option value="Inactive">Inactive</option>
                 </select>
               </div>
@@ -692,7 +737,44 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 2. Department Routing Modal (مطابق للصورتين 3 و 4) */}
+      {/* 2. Delete Confirmation Modal */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white text-slate-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl relative space-y-4 text-center animate-scaleUp">
+            
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 text-xl mx-auto">
+              ⚠️
+            </div>
+
+            <div>
+              <h4 className="text-lg font-bold text-slate-900" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                Confirm Removal
+              </h4>
+              <p className="text-xs text-slate-500 mt-1">
+                Are you sure you want to remove <span className="font-bold text-slate-800">"{deleteModal.name}"</span>? This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center space-x-3 pt-2">
+              <button 
+                onClick={() => setDeleteModal({ isOpen: false, type: 'user', id: null, name: '' })}
+                className="w-1/2 border border-slate-300 hover:bg-slate-50 text-slate-700 py-2.5 rounded-xl font-bold text-xs cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleConfirmDelete}
+                className="w-1/2 bg-rose-600 hover:bg-rose-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-md cursor-pointer"
+              >
+                Yes, Remove
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 3. Department Routing Modal */}
       {deptModal.isOpen && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white text-slate-800 w-full max-w-lg rounded-3xl p-6 shadow-2xl relative space-y-5 animate-scaleUp">
@@ -762,7 +844,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 3. Doctor Schedule Modal (مطابق للصورتين 5 و 6) */}
+      {/* 4. Doctor Schedule Modal */}
       {scheduleModal.isOpen && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white text-slate-800 w-full max-w-lg rounded-3xl p-6 shadow-2xl relative space-y-5 animate-scaleUp">
